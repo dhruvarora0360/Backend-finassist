@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+openai
+mysql-connector-python
+scikit-learn
+numpy
+sentence-transformers
+faiss-cpu
