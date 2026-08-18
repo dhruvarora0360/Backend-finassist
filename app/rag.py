@@ -1,16 +1,16 @@
 from pathlib import Path
-import numpy as np
 
 
 class RAGRetriever:
     """
-    FinAssist RAG Retriever.
+    Lightweight FinAssist RAG Retriever.
 
-    Uses:
-    1. Sentence Transformers + FAISS when available.
-    2. Keyword matching as a fallback.
+    Uses keyword-based retrieval only.
 
-    RAG is intended for finance knowledge stored
+    This version is designed for low-memory deployment
+    environments such as Render's limited-memory instances.
+
+    Finance knowledge is loaded from Markdown files
     inside the docs directory.
     """
 
@@ -20,13 +20,7 @@ class RAGRetriever:
 
         self.documents = []
 
-        self.model = None
-
-        self.index = None
-
         self._load_documents()
-
-        self._build_semantic_index()
 
 
     # =====================================================
@@ -74,143 +68,7 @@ class RAGRetriever:
 
 
     # =====================================================
-    # BUILD FAISS INDEX
-    # =====================================================
-
-    def _build_semantic_index(self):
-
-        if not self.documents:
-
-            return
-
-
-        try:
-
-            from sentence_transformers import (
-                SentenceTransformer
-            )
-
-            import faiss
-
-
-            print(
-                "Loading RAG embedding model..."
-            )
-
-
-            self.model = SentenceTransformer(
-                "all-MiniLM-L6-v2"
-            )
-
-
-            vectors = self.model.encode(
-                self.documents,
-                normalize_embeddings=True
-            )
-
-
-            vectors = np.asarray(
-                vectors,
-                dtype="float32"
-            )
-
-
-            self.index = faiss.IndexFlatIP(
-                vectors.shape[1]
-            )
-
-
-            self.index.add(vectors)
-
-
-            print(
-                "RAG semantic search enabled."
-            )
-
-
-        except Exception as exc:
-
-            self.model = None
-
-            self.index = None
-
-
-            print(
-                "RAG semantic search unavailable."
-            )
-
-            print(
-                f"Using keyword fallback: {exc}"
-            )
-
-
-    # =====================================================
-    # SEMANTIC SEARCH
-    # =====================================================
-
-    def _semantic_search(
-        self,
-        query,
-        k
-    ):
-
-        if not self.model or not self.index:
-
-            return []
-
-
-        try:
-
-            query_vector = self.model.encode(
-                [query],
-                normalize_embeddings=True
-            )
-
-
-            query_vector = np.asarray(
-                query_vector,
-                dtype="float32"
-            )
-
-
-            number = min(
-                k,
-                len(self.documents)
-            )
-
-
-            scores, ids = self.index.search(
-                query_vector,
-                number
-            )
-
-
-            results = []
-
-
-            for document_id in ids[0]:
-
-                if document_id >= 0:
-
-                    results.append(
-                        self.documents[document_id]
-                    )
-
-
-            return results
-
-
-        except Exception as exc:
-
-            print(
-                f"RAG semantic search error: {exc}"
-            )
-
-            return []
-
-
-    # =====================================================
-    # KEYWORD FALLBACK
+    # KEYWORD SEARCH
     # =====================================================
 
     def _keyword_search(
@@ -283,27 +141,6 @@ class RAGRetriever:
             )
         )
 
-
-        # -------------------------------------------------
-        # Try semantic search first
-        # -------------------------------------------------
-
-        if self.model and self.index:
-
-            results = self._semantic_search(
-                query,
-                k
-            )
-
-
-            if results:
-
-                return results
-
-
-        # -------------------------------------------------
-        # Keyword fallback
-        # -------------------------------------------------
 
         return self._keyword_search(
             query,
